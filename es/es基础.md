@@ -209,4 +209,22 @@ must、should会影响相关性得分，filter查询逻辑同must，但不影响
 
 
 ### 映射
-数据类型
+定义文档中字段的数据类型
+
+![数据类型](pic/data_type.jpg)
+数据类型如上, 取自kimi, 官方文档如下：
+[官方文档-ES数据类型](https://www.elastic.co/guide/en/elasticsearch/reference/7.17/mapping-types.html)
+
+
+## 分页方式 (深分页问题)
+### from size 浅分页
+> 原理：es基于shard，比如 from=0，size=10 时，会从多个 shard 中均取出10条数据，最终选择 10 条数据
+
+该分页原理导致深分页时，性能影响会很大，且 from size 分页查询不能超过 es 配置 max_result_windows (默认10000)
+### scroll 深分页
+> 原理：每次只能查询一页的内容, 并且返回一个scroll_id, 根据返回的 scroll_id 获取下一页的信息
+
+使用 scroll 时必须将 from 设置为 0
+
+
+### search_after 深分页
