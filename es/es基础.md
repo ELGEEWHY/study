@@ -217,10 +217,21 @@ must、should会影响相关性得分，filter查询逻辑同must，但不影响
 
 
 ## 分页方式 (深分页问题)
+> 注：scroll、search_after 均不支持跳页，所以在跳转较深的页时，比如有的分页可以输入跳转，不适合用 search_after 进行分页。
+> 
+> 用 search_after 进行深分页时，可以通过缓存后几页游标的方式实现小幅度跳页，或者通过某些事先知道排序值的字段，手动计算sort值，实现跳页
 ### from size 浅分页
 > 原理：es基于shard，比如 from=0，size=10 时，会从多个 shard 中均取出10条数据，最终选择 10 条数据
 
-该分页原理导致深分页时，性能影响会很大，且 from size 分页查询不能超过 es 配置 max_result_windows (默认10000)
+该分页原理导致深分页时，性能影响会很大，且 from size 分页查询不能超过 es 配置 **max_result_windows** (默认10000)
+当分页查询文档超过该值，会报错，可以通过扩大该值, 继续用 from_size 查询，但数据量大后会 OOM (以前 CRM 这么干过)
+
+    PUT demo/_settings
+    { 
+        "index" : { 
+            "max_result_window" : 20000
+        }
+    }
 ### scroll 深分页
 > 原理：每次只能查询一页的内容, 并且返回一个scroll_id, 根据返回的 scroll_id 获取下一页的信息
 
@@ -228,3 +239,84 @@ must、should会影响相关性得分，filter查询逻辑同must，但不影响
 
 
 ### search_after 深分页
+适用于**实时查询、顺序翻页**场景，在 5.0 版本之后才能够使用
+> 根据上一页的最后一条数据来确定下一页的位置，同时在分页请求的过程中，如果有索引数据的增删改查，这些变更也会实时的反映到游标上
+
+根据该原理可以看出，每一页的数据依赖于上一页最后一条数据，所以 **无法跳页** ，使用 search_after 的时候要将 **from 置为 0 或 -1**, 使用时，from常被隐式忽略，默认from=0
+
+展示一个博客园的demo：
+    
+    POST twitter/_search
+    {
+        "size": 10,
+        "query": {
+            "match" : {
+                "title" : "es"
+            }
+        },
+        "sort": [
+            {"date": "asc"},
+            {"_id": "desc"}
+        ]
+    }
+
+    # 返回的结果
+    {
+          "took" : 29,
+          "timed_out" : false,
+          "_shards" : {
+            "total" : 1,
+            "successful" : 1,
+            "skipped" : 0,
+            "failed" : 0
+          },
+          "hits" : {
+            "total" : {
+              "value" : 5,
+              "relation" : "eq"
+            },
+            "max_score" : null,
+            "hits" : [
+              {
+                ...
+                },
+                "sort" : [
+                  ...
+                ]
+              },
+              {
+                ...
+                },
+                "sort" : [
+                  124648691,
+                  "624812"
+                ]
+              }
+            ]
+          }
+        }
+
+    # 上面的请求会为每一个文档返回一个包含sort排序值的数组。
+    # 这些sort排序值可以被用于 search_after 参数里以便抓取下一页的数据。
+    # 比如，我们可以使用最后的一个文档的sort排序值，将它传递给 search_after 参数：
+
+    GET twitter/_search
+    {
+        "size": 10,
+        "query": {
+            "match" : {
+                "title" : "es"
+            }
+        },
+        "search_after": [124648691,"624812"],
+        "sort": [
+            {"date": "asc"},
+            {"_id": "desc"}
+        ]
+    }
+
+search_after 的正确用法
+1. 首次查询：不设置 search_after，默认返回第一页（from=0），同时返回每条结果的 sort 数组。
+2. 后续查询：将前一页最后一条的 sort 数组值作为 search_after 参数，继续获取下一页。
+3. 排序一致性：必须保证所有分页请求的 sort 字段和顺序完全一致，否则分页会错乱。
+
