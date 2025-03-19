@@ -125,7 +125,7 @@ must、should会影响相关性得分，filter查询逻辑同must，但不影响
     world: [0]
     python: [1, 2]
     demo: [1]
-
+    
     must搜索hello,计算相关性得分,文档[3]会排在最前面；
     filter搜索hello,若无其他排序条件,文档[0]会排在最前面
 
@@ -158,7 +158,7 @@ must、should会影响相关性得分，filter查询逻辑同must，但不影响
         },
         "size": 0      # 结果不返回命中的文档信息
     }
-
+    
     # 结果, 展示不同客户阶段的客户数量
     {
         "took": 138,
@@ -259,7 +259,7 @@ must、should会影响相关性得分，filter查询逻辑同must，但不影响
             {"_id": "desc"}
         ]
     }
-
+    
     # 返回的结果
     {
           "took" : 29,
@@ -295,11 +295,11 @@ must、should会影响相关性得分，filter查询逻辑同must，但不影响
             ]
           }
         }
-
+    
     # 上面的请求会为每一个文档返回一个包含sort排序值的数组。
     # 这些sort排序值可以被用于 search_after 参数里以便抓取下一页的数据。
     # 比如，我们可以使用最后的一个文档的sort排序值，将它传递给 search_after 参数：
-
+    
     GET twitter/_search
     {
         "size": 10,
@@ -320,3 +320,4 @@ search_after 的正确用法
 2. 后续查询：将前一页最后一条的 sort 数组值作为 search_after 参数，继续获取下一页。
 3. 排序一致性：必须保证所有分页请求的 sort 字段和顺序完全一致，否则分页会错乱。
 
+ 
