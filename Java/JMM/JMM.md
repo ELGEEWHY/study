@@ -11,7 +11,7 @@
 - lock：将主存变量加锁，标识为线程独占状态
 - unlock：主存变量解锁，解锁后可以锁定该变量
 
-![Img](/Java/JMM/JMM_model.png)
+![Img](JMM_model.png)
 
 
 ## 并发编程三特性
